@@ -108,7 +108,7 @@
     .feed-empty h2{color:var(--text-primary);font-weight:600;margin-bottom:10px}
     .feed-tools{position:sticky;top:3px;z-index:4;display:flex;justify-content:flex-end;padding:10px 16px 0;pointer-events:none}
     .feed-tools button{pointer-events:auto;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-secondary);font:inherit;font-size:13px;padding:8px 14px;min-height:36px;border-radius:999px;cursor:pointer}
-    .saved-dialog{width:min(1100px,calc(100% - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--border-color);border-radius:24px;background:var(--bg-primary);color:var(--text-primary);overflow:hidden}
+    .saved-dialog{margin:auto;width:min(1100px,calc(100% - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--border-color);border-radius:24px;background:var(--bg-primary);color:var(--text-primary);overflow:hidden}
     .saved-dialog[open]{display:flex;flex-direction:column}
     .saved-dialog::backdrop{background:rgba(0,0,0,.65);backdrop-filter:blur(3px)}
     .saved-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px;border-bottom:1px solid var(--border-color)}
@@ -1507,12 +1507,19 @@
     const paintCount = () => { filterBtn.textContent = '☆ Saved · ' + items().length; };
     paintCount();
 
-    // Skip the title page, acknowledgements, preface: begin at Chapter 1 when the book has one.
+    // Skip the title page, acknowledgements, preface: begin at the Introduction (or Chapter 1) when the book has one.
     function fromChapterOne(text) {
-      const lines = text.split('\n'); let off = 0;
-      for (let k = 0; k < lines.length; k++) {
-        if (lines[k].length <= 80 && /^\s*chapter\s+(1|one|i)\b/i.test(lines[k])) return k ? text.slice(off) : text;
-        off += lines[k].length + 1;
+      // Works on plain-text lines and on PDF pages (one long line per page).
+      const start = /^\s*(introduction\b|chapter\s+(1|one|i)\b)/i;
+      let off = 0;
+      for (const block of text.split('\n')) {
+        if (start.test(block)) {
+          // A table of contents lists the next chapter right after: skip those entries.
+          const isContents = /\n\s*chapter\s+(2|two|ii)\b/i.test(text.slice(off + 12, off + 350))
+            || /chapter\s+(2|two|ii)\b/i.test(text.slice(off + 12, off + 160));
+          if (!isContents) return off ? text.slice(off) : text;
+        }
+        off += block.length + 1;
       }
       return text;
     }
@@ -1559,7 +1566,7 @@
       const at = Math.min(store.get('pos:' + slug, 0), chunks.length - 1);
       feedView.scrollTop = 0;
       const target = list.children[at];
-      if (target && at > 0) requestAnimationFrame(() => { feedView.scrollTop = target.offsetTop - 3; paint(); });
+      if (target && at > 0) feedView.scrollTop = target.offsetTop - 3;
       paint();
     }
 
@@ -1617,16 +1624,64 @@
       paintCount(); renderSaved();
     });
 
+    // ---- Your uploads: kept in this browser (IndexedDB) so they stay in the picker ----
+    const db = (() => {
+      let conn;
+      const open = () => conn || (conn = new Promise((res, rej) => {
+        const r = indexedDB.open('readable', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('books', { keyPath: 'id' });
+        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+      }));
+      const tx = (mode, fn) => open().then((d) => new Promise((res, rej) => { const q = fn(d.transaction('books', mode).objectStore('books')); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }));
+      return { put: (b) => tx('readwrite', (o) => o.put(b)), get: (id) => tx('readonly', (o) => o.get(id)), all: () => tx('readonly', (o) => o.getAll()), del: (id) => tx('readwrite', (o) => o.delete(id)) };
+    })();
+    let group;
+    function addOption(b) {
+      if (!group) { group = document.createElement('optgroup'); group.label = 'Your uploads'; bookSelect.appendChild(group); }
+      if (![...group.children].some((o) => o.value === b.id)) { const o = document.createElement('option'); o.value = b.id; o.textContent = b.title; group.appendChild(o); }
+    }
+    try { db.all().then((all) => all.sort((x, y) => y.at - x.at).forEach(addOption)).catch(() => {}); } catch (e) {}
+
+    let uploading = false;
+    const origUpload = reader.loadUploadedFile.bind(reader);
+    reader.loadUploadedFile = async function (file) { uploading = true; try { await origUpload(file); } finally { uploading = false; } };
+    const origLoadBook = reader.loadBook.bind(reader);
+    reader.loadBook = async function (id) {
+      if (!id || !id.startsWith('up:')) return origLoadBook(id);
+      this.pause();
+      this.bookPage.innerHTML = '<div class="welcome"><p>Loading book...</p></div>';
+      try { const b = await db.get(id); if (!b) throw new Error('missing'); this.loadText(b.text); }
+      catch (e) { this.bookPage.innerHTML = '<div class="welcome"><h2 style="color:var(--text-primary);margin-bottom:12px">Could not open this upload</h2><p>Try uploading the file again.</p></div>'; }
+    };
+
+    // ---- Resume: remember the exact place in both modes ----
+    let lastSaved = -1;
+    setInterval(() => {
+      if (!slug || !reader.words.length || reader.currentIndex === lastSaved) return;
+      lastSaved = reader.currentIndex; store.set('wpos:' + slug, lastSaved);
+    }, 1500);
+    addEventListener('pagehide', () => { if (slug && reader.words.length) store.set('wpos:' + slug, reader.currentIndex); });
+
     // Follow whatever the speed reader loads (book, upload, or PDF).
     const origLoadText = reader.loadText.bind(reader);
-    reader.loadText = function (text) {
-      text = fromChapterOne(text);
+    reader.loadText = function (raw) {
+      const first0 = raw.match(/^#\s+(.*)$/m);
+      if (uploading) {
+        const t = (first0 ? first0[1] : 'Your file').trim();
+        const id = 'up:' + t.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + raw.length;
+        const rec = { id, title: t, text: raw, at: Date.now() };
+        db.put(rec).catch(() => {});
+        addOption(rec); bookSelect.value = id;
+      }
+      const text = fromChapterOne(raw);
       origLoadText(text);
-      const first = text.match(/^#\s+(.*)$/m);
       const opt = bookSelect.selectedOptions[0];
-      title = (opt && opt.value ? opt.textContent : (first ? first[1] : 'Your file')).trim();
+      title = (opt && opt.value ? opt.textContent : (first0 ? first0[1] : 'Your file')).trim();
       slug = (bookSelect.value || title).toLowerCase().replace(/[^a-z0-9]+/g, '-');
       chunks = chunkify(text);
+      const at = store.get('wpos:' + slug, 0);
+      lastSaved = at;
+      if (at > 0 && at < reader.words.length) { reader.currentIndex = at; reader.updateDisplay(); }
       if (document.body.classList.contains('mode-feed')) render(); else list.innerHTML = '';
     };
 
