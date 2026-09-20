@@ -87,7 +87,7 @@
     /* MODE SWITCH + DOOMSCROLL FEED (Latch-style "reading now") */
     .mode-bar{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:14px 24px;background:var(--bg-primary)}
     .brand{justify-self:start;display:inline-flex;align-items:center;gap:12px;text-decoration:none;color:var(--text-primary)}
-    .brand__logo{--d:44px;flex:0 0 auto;display:block;width:var(--d);height:var(--d);border-radius:50%;background:#fff url("https://mariangasinu.com/wp-content/uploads/2025/12/cropped-cropped-Black-White-Minimalist-Business-Logo-1080-x-1080-px.png") no-repeat;background-size:calc(var(--d) * 3.234) auto;background-position:calc(var(--d) * -0.392) calc(var(--d) * -1.12);border:1px solid var(--border-color)}
+    .brand__logo{--d:48px;flex:0 0 auto;display:block;width:var(--d);height:var(--d);border-radius:50%;background:#000 url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22 style=%22height: 512px%3B width: 512px%3B%22%3E%3Cpath d=%22M0 0h512v512H0z%22 fill=%22%23000%22 fill-opacity=%221%22%3E%3C/path%3E%3Cg class=%22%22 transform=%22translate%280%2C0%29%22 style=%22%22%3E%3Cpath d=%22M204.055 213.905q-18.12-5.28-34.61-9a145.92 145.92 0 0 1-6.78-44.33c0-65.61 42.17-118.8 94.19-118.8 52.02 0 94.15 53.14 94.15 118.76a146.3 146.3 0 0 1-6.16 42.32q-20.52 4.3-43.72 11.05c-22 6.42-39.79 12.78-48.56 16.05-8.72-3.27-26.51-9.63-48.51-16.05zm-127.95 84.94a55.16 55.16 0 1 0 55.16 55.15 55.16 55.16 0 0 0-55.16-55.15zm359.79 0a55.16 55.16 0 1 0 55.16 55.15 55.16 55.16 0 0 0-55.15-55.15zm-71.15 55.15a71.24 71.24 0 0 1 42.26-65v-77.55c-64.49 0-154.44 35.64-154.44 35.64s-89.95-35.64-154.44-35.64v74.92a71.14 71.14 0 0 1 0 135.28v7c64.49 0 154.44 41.58 154.44 41.58s89.99-41.55 154.44-41.55v-9.68a71.24 71.24 0 0 1-42.26-65z%22 fill=%22%23fff%22 fill-opacity=%221%22%3E%3C/path%3E%3C/g%3E%3C/svg%3E") no-repeat center / 86%;border:1px solid var(--border-color)}
     .brand span{font-size:20px;font-weight:700;letter-spacing:-.02em}
     .brand:focus-visible{outline:2px solid var(--text-primary);outline-offset:4px;border-radius:8px}
     .mode-switch{display:inline-flex;gap:4px;padding:5px;border-radius:16px;background:var(--bg-tertiary);border:1px solid var(--border-color)}
@@ -132,7 +132,7 @@
     @media (max-width:768px){
       .mode-bar{grid-template-columns:1fr;justify-items:center;padding:12px 12px 8px;gap:10px}
       .brand{justify-self:center}
-      .brand__logo{--d:40px}
+      .brand__logo{--d:44px}
       .brand span{font-size:18px}
       .mode-switch{width:100%;max-width:420px}
       .mode-switch button{flex:1;padding:12px 10px;font-size:15px;min-height:44px}
@@ -401,6 +401,10 @@
       width:100%;
       height:auto;
     }
+
+    .welcome-hero .hero-light{display:none}
+    body.light-mode .welcome-hero .hero-light{display:block}
+    body.light-mode .welcome-hero .hero-dark{display:none}
 
     .welcome::before{
       content:'';
@@ -816,7 +820,8 @@
     <div class="book-page" id="bookPage">
       <div class="welcome">
         <div class="welcome-hero">
-          <img src="https://mariangasinu.com/wp-content/uploads/2026/03/speedreaderapp-2.png" alt="Speed Reader app preview" />
+          <img class="hero-dark" src="https://mariangasinu.com/wp-content/uploads/2026/09/readable-dark-scaled.png" alt="Readable: gold glasses showing one word at a time" width="1600" height="992" decoding="async" />
+          <img class="hero-light" src="https://mariangasinu.com/wp-content/uploads/2026/09/readable-light-scaled.png" alt="" width="1600" height="992" loading="lazy" decoding="async" />
         </div>
         <h1>
           <svg viewBox="0 0 24 24" style="width: 48px; height: 48px; display: inline-block; vertical-align: middle; margin-right: 12px; fill: var(--text-primary);">
