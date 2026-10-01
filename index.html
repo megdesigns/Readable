@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Speed Reader - Book View</title>
+  <title>Readable-Anything can be easy to read</title>
   
   <!-- Favicon and Site Metadata -->
   <link rel="icon" type="image/png" href="https://mariangasinu.com/wp-content/uploads/2025/12/Black-White-Minimalist-Business-Logo-1080-x-1080-px-2.png" />
@@ -23,6 +23,7 @@
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    button, input, select, textarea { font-family: inherit; }
 
     html {
       overflow-x: hidden;
@@ -69,7 +70,7 @@
     }
 
     body{
-      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Georgia',serif;
+      font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display','Helvetica Neue',Arial,sans-serif;
       background:var(--bg-primary);
       color:var(--text-tertiary);
       overflow-x: hidden;
@@ -103,7 +104,7 @@
     .feed-slide{min-height:calc(var(--fh,80vh) - 3px);scroll-snap-align:start;scroll-snap-stop:always;display:flex;flex-direction:column;justify-content:center;gap:22px;max-width:760px;margin:0 auto;padding:40px 28px;content-visibility:auto;contain-intrinsic-size:auto 520px}
     .feed-meta{display:flex;flex-wrap:wrap;gap:6px 10px;font-size:14px;color:var(--text-secondary)}
     .feed-meta b{color:var(--text-primary);font-weight:500}
-    .feed-text{font-size:clamp(22px,3.2vw,34px);line-height:1.45;color:var(--text-primary);font-weight:400;letter-spacing:-.01em}
+    .feed-text{font-size:clamp(22px,3.2vw,34px);line-height:1.45;color:var(--text-primary);font-weight:600;letter-spacing:-.01em}
     .feed-acts{display:flex;gap:10px;color:var(--text-secondary)}
     .feed-acts button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-color);background:none;color:inherit;font:inherit;font-size:14px;padding:8px 14px;border-radius:999px;cursor:pointer}
     .feed-acts button:hover{background:var(--bg-tertiary);color:var(--text-primary)}
@@ -117,22 +118,29 @@
     .feed-empty__note{margin-top:22px;font-size:13px}
     .feed-tools{position:sticky;top:3px;z-index:4;display:flex;justify-content:flex-end;padding:10px 16px 0;pointer-events:none}
     .feed-tools button{pointer-events:auto;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-secondary);font:inherit;font-size:13px;padding:8px 14px;min-height:36px;border-radius:999px;cursor:pointer}
-    .saved-dialog{margin:auto;width:min(1100px,calc(100% - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--border-color);border-radius:24px;background:var(--bg-primary);color:var(--text-primary);overflow:hidden}
+    .saved-dialog{margin:auto;width:min(820px,calc(100% - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--border-color);border-radius:24px;background:var(--bg-primary);color:var(--text-primary);overflow:hidden}
     .saved-dialog[open]{display:flex;flex-direction:column}
     .saved-dialog::backdrop{background:rgba(0,0,0,.65);backdrop-filter:blur(3px)}
     .saved-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px;border-bottom:1px solid var(--border-color)}
     .saved-head h2{font-size:22px;font-weight:600;color:var(--text-primary)}
     .saved-head span{color:var(--text-secondary);font-size:14px;margin-left:8px;font-weight:400}
-    .saved-close{width:44px;height:44px;border-radius:50%;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:18px;cursor:pointer}
-    .saved-grid{overflow-y:auto;padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:20px;align-content:start}
-    .saved-card{display:flex;flex-direction:column;gap:14px;padding:22px;border:1.5px solid var(--text-primary);border-radius:18px;background:var(--bg-primary)}
-    .saved-card .feed-meta{font-size:13px}
-    .saved-card p{font-size:19px;line-height:1.4;color:var(--text-primary);letter-spacing:-.01em}
+    .saved-close{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;border:0;border-radius:0;background:transparent;color:var(--text-primary);appearance:none;cursor:pointer}
+    .saved-close svg{width:22px;height:22px;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+    .saved-close:focus{outline:none}
+    .saved-close:focus-visible{outline:2px solid var(--text-primary);outline-offset:2px;border-radius:4px}
+    .saved-grid{overflow-y:auto;padding:20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-content:start}
+    .saved-card{display:flex;flex-direction:column;gap:10px;min-width:0;padding:16px;border:1.5px solid var(--text-primary);border-radius:16px;background:var(--bg-primary)}
+    .saved-card .feed-meta{font-size:12px}
+    .saved-card .feed-meta b{display:-webkit-box;flex-basis:100%;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+    .saved-card p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:7;overflow:hidden;font-size:16px;line-height:1.4;color:var(--text-primary);font-weight:600;letter-spacing:-.01em}
+    .saved-card.expanded p{display:block;overflow:visible}
+    .saved-card .saved-expand{align-self:flex-start;margin-top:0;padding:0;min-height:28px;border:0;color:var(--text-secondary)}
+    .saved-card .saved-expand:hover{border:0}
     .saved-card button{align-self:flex-start;margin-top:auto;border:1px solid var(--border-color);background:none;color:var(--text-secondary);font:inherit;font-size:13px;padding:8px 14px;min-height:36px;border-radius:999px;cursor:pointer}
     .saved-card button:hover{color:var(--text-primary);border-color:var(--text-primary)}
     .saved-empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-secondary);line-height:1.6}
     .saved-empty h3{color:var(--text-primary);margin-bottom:8px;font-weight:600}
-    @media (max-width:768px){.saved-dialog{width:100%;max-height:100dvh;height:100dvh;border-radius:0;border:0}.saved-grid{padding:16px;grid-template-columns:1fr}.saved-head{padding:14px 16px}}
+    @media (max-width:768px){.saved-dialog{width:100%;max-height:100dvh;height:100dvh;border-radius:0;border:0}.saved-grid{padding:12px;gap:10px}.saved-card{padding:12px;gap:8px;border-radius:14px}.saved-card p{font-size:14px;line-height:1.35}.saved-head{padding:14px 16px}}
     .feed-slide{padding-bottom:calc(40px + env(safe-area-inset-bottom))}
     @media (max-width:768px){
       .mode-bar{grid-template-columns:1fr;justify-items:center;padding:12px 12px 8px;gap:10px}
@@ -335,6 +343,7 @@
       line-height:1.8;
       text-align:left;
       color:var(--text-tertiary);
+      font-weight:600;
       word-wrap: break-word;
     }
 
@@ -345,7 +354,7 @@
     }
     .word.current{
       color:var(--text-primary);
-      font-weight:500;
+      font-weight:600;
     }
     .word.past{ color:var(--text-dimmed); }
 
@@ -883,7 +892,7 @@
   </div>
 
   <dialog class="saved-dialog" id="savedDialog" aria-labelledby="savedTitle">
-    <div class="saved-head"><h2 id="savedTitle">Saved<span id="savedCount"></span></h2><button type="button" class="saved-close" id="savedClose" aria-label="Close saved">✕</button></div>
+    <div class="saved-head"><h2 id="savedTitle">Saved<span id="savedCount"></span></h2><button type="button" class="saved-close" id="savedClose" aria-label="Close saved"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg></button></div>
     <div class="saved-grid" id="savedGrid"></div>
   </dialog>
 
@@ -1569,8 +1578,8 @@
       setH();
       if (!chunks.length) {
         list.innerHTML = '<div class="feed-empty"><h2>How Scroll works</h2><ol>'
-          + '<li><span><b>Pick something to read.</b> Choose a book above, or upload your own PDF or TXT.</span></li>'
-          + '<li><span><b>Get one thought per screen.</b> Readable splits the text into short passages and starts at chapter one.</span></li>'
+          + '<li><span><b>Upload a PDF or TXT.</b></span></li>'
+          + '<li><span><b>Readable breaks it down into digestible chunks.</b></span></li>'
           + '<li><span><b>Scroll like a feed.</b> Swipe or scroll to the next passage. Tap Save on anything worth keeping and find it under Saved.</span></li>'
           + '</ol><p class="feed-empty__note">Your place is remembered, and uploads stay in this browser.</p></div>';
         fill.style.width = '0';
@@ -1631,6 +1640,7 @@
         <article class="saved-card" data-id="${esc(x.id)}">
           <div class="feed-meta"><b>${esc(x.title)}</b>${x.chapter ? '<span>· ' + esc(x.chapter) + '</span>' : ''}<span>· ${x.i + 1} of ${x.n}</span></div>
           <p>${esc(x.text)}</p>
+          <button type="button" class="saved-expand" aria-expanded="false">Read more</button>
           <button type="button" data-remove="${esc(x.id)}">Remove</button>
         </article>`).join('')
         : '<div class="saved-empty"><h3>Nothing saved yet</h3><p>Tap Save on any passage while you scroll and it will show up here, on this device.</p></div>';
@@ -1639,6 +1649,13 @@
     document.getElementById('savedClose').addEventListener('click', () => dlg.close());
     dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
     grid.addEventListener('click', (e) => {
+      const expand = e.target.closest('button.saved-expand');
+      if (expand) {
+        const expanded = expand.closest('.saved-card').classList.toggle('expanded');
+        expand.setAttribute('aria-expanded', String(expanded));
+        expand.textContent = expanded ? 'Show less' : 'Read more';
+        return;
+      }
       const r = e.target.closest('button[data-remove]'); if (!r) return;
       const id = r.dataset.remove, gone = items().find((x) => x.id === id);
       store.set('savedItems', items().filter((x) => x.id !== id));
