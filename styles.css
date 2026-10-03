@@ -771,7 +771,6 @@ body.light-mode .feed-text mark{background:#f3d77d;color:var(--text-primary)}
 .feed-acts button.on{border:0;color:var(--text-primary)}
 .feed-acts button.on[data-act="like"] .action-icon,.feed-acts button.on[data-act="saved"] .action-icon{fill:currentColor}
 .feed-acts .action-icon{width:27px;height:27px}
-.feed-tip{color:var(--text-secondary);font-size:13px}
 .selection-bar{position:fixed;z-index:3500;left:50%;bottom:calc(var(--footer-height,48px) + 22px);transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:7px;border:1px solid var(--border-color);border-radius:16px;background:var(--bg-secondary);color:var(--text-primary);box-shadow:0 12px 40px rgba(0,0,0,.3);white-space:nowrap}
 .selection-bar[hidden]{display:none}
 .selection-bar span{padding:0 8px;color:var(--text-secondary);font-size:13px}

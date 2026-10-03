@@ -536,30 +536,94 @@
     const paintCount = () => { filterBtn.innerHTML = `${icon('bookmark')}Saved · ${countAll()}`; };
     paintCount();
 
-    // Skip the title page, acknowledgements, preface: begin at the Introduction (or Chapter 1) when the book has one.
+    // Skip the title page, contents, acknowledgements, preface: begin at the Introduction or
+    // Chapter 1, whichever comes first. Works on plain-text lines and on PDF pages (one long
+    // line per page), where a heading can sit after a page number or a running header.
     function fromChapterOne(text) {
-      // Works on plain-text lines and on PDF pages (one long line per page).
-      const start = /^\s*(introduction\b|chapter\s+(1|one|i)\b)/i;
-      let off = 0;
-      for (const block of text.split('\n')) {
-        if (start.test(block)) {
-          // A table of contents lists the next chapter right after: skip those entries.
-          const isContents = /\n\s*chapter\s+(2|two|ii)\b/i.test(text.slice(off + 12, off + 350))
-            || /chapter\s+(2|two|ii)\b/i.test(text.slice(off + 12, off + 160));
-          if (!isContents) return off ? text.slice(off) : text;
-        }
-        off += block.length + 1;
+      const HEAD = /(I ?N ?T ?R ?O ?D ?U ?C ?T ?I ?O ?N|Introduction|CHAPTER\s+(?:1|ONE|I)|Chapter\s+(?:1|One|I))(?![a-z0-9])/g;
+      const ENTRY = /\b(?:chapter|section|part|secret\s*#)|\s\d{1,3}\s+(?=[A-Z])|(?:^|\s)\d{1,2}\s?[.|]\s?[A-Z]|\b[xvi]{1,5}\s*$/gim;
+      const limit = text.length * 0.4;
+      const lineStart = (at) => text.lastIndexOf('\n', at - 1) + 1;
+      const lineEnd = (at) => { const n = text.indexOf('\n', at); return n < 0 ? text.length : n; };
+      // A heading starts a line, or follows a page number, a sentence end, or repeats of itself.
+      function standsAlone(at, len) {
+        const before = text.slice(lineStart(at), at);
+        const title = before.trim().length < 120 && titleLike(before.replace(/[=*_~#-]{3,}/g, ' '));
+        if (before.trim() && !title && !/(?:^|\s)(?:-?\d{1,3}-?|[xvi]{1,6})\s*$|[.!?:”"’)]\s*$|(introduction|chapter)\s*$/i.test(before)) return false;
+        const after = text.slice(at + len, at + len + 3);
+        return !/^\s*[a-z,;(]/.test(after) || /^\s*\n/.test(after);
       }
-      return text;
+      // "Introduction 10" / "Introduction xiii": a running header, so the section began earlier.
+      const runningHeader = (at, len) => /^\s*(?:\d{1,3}|[xvi]{1,6})\s*(?:\n|$|[A-Z]?[a-z])/.test(text.slice(at + len, at + len + 12))
+        && !/^\s*\d{1,3}\s*\n\s*(?:chapter|[A-Z][A-Z ]{3,})/i.test(text.slice(at + len, at + len + 40));
+      // A contents page lists several entries close together.
+      const entries = (from, to) => (text.slice(from, to).match(ENTRY) || []).length;
+      // ...or, as lines, a run of short titles.
+      const looksLikeContents = (at) => entries(at, at + 300) >= 3
+        || (lineEnd(at) - at > 300 && !/[a-z][.!?]\s/.test(text.slice(at, at + 200)) && titleLike(text.slice(at, at + 200).replace(/\b\w\b/g, '')))
+        || text.slice(lineEnd(at) + 1, lineEnd(at) + 400).split('\n').filter((l) => l.trim()).slice(0, 4)
+          .every((l, _, all) => all.length === 4 && l.trim().length < 70 && contentsLine(l));
+      // Mostly capitalised words, not counting the small ones a title leaves lower case.
+      function titleLike(s) {
+        const words = s.trim().split(/\s+/).filter((w) => w && !/^(of|the|and|to|a|an|in|for|on|with|is|by|as|at|or|from|into|your|you)$/.test(w));
+        return words.length > 0 && words.filter((w) => /^[^a-z]*[A-Z0-9]/.test(w)).length / words.length >= 0.6;
+      }
+      function contentsLine(s) {
+        const line = s.trim();
+        if (!line) return true;
+        if (line.length > 120) return (line.match(ENTRY) || []).length >= Math.max(3, line.length / 120) && (line.match(/[a-z][.!?]\s/g) || []).length < line.length / 400;
+        return /\d\s*$/.test(line) || /^(\d|chapter|section|part|secret|contents)/i.test(line) || titleLike(line);
+      }
+      function contentsEnd(at) {
+        let end = lineEnd(at);
+        while (end < text.length) {
+          const next = lineEnd(end + 1);
+          // One subtitle in sentence case ("Get to know the Holy Spirit") does not end the contents.
+          if (!contentsLine(text.slice(end + 1, next)) && !(next - end < 70 && contentsLine(text.slice(next + 1, lineEnd(next + 1))) && text.slice(next + 1, lineEnd(next + 1)).trim())) break;
+          end = next;
+        }
+        return end + 1;
+      }
+      let afterContents = -1, firstEntry = false;
+      HEAD.lastIndex = 0;
+      for (let m; (m = HEAD.exec(text)) && m.index < limit;) {
+        const at = m.index, len = m[0].length;
+        if (!standsAlone(at, len)) continue;
+        if (looksLikeContents(at)) {
+          if (afterContents < 0) {
+            const contentsWord = text.slice(Math.max(0, at - 80), at).search(/contents[^a-z]*$/i);
+            firstEntry = contentsWord >= 0 || !/contents/i.test(text.slice(Math.max(0, at - 400), at));
+          }
+          afterContents = contentsEnd(at);
+          HEAD.lastIndex = Math.max(HEAD.lastIndex, afterContents);
+          continue;
+        }
+        if (runningHeader(at, len)) {
+          // The section was already under way: it began where the contents ended.
+          if (afterContents >= 0 && firstEntry) return text.slice(afterContents);
+          continue;
+        }
+        // The contents named this section first and only a page or two sits between: start there.
+        const start = afterContents >= 0 && firstEntry && at - afterContents < 3000 && /[a-z]{3,}[.!?,]/.test(text.slice(afterContents, at))
+          ? afterContents : lineStart(at) === at || !text.slice(lineStart(at), at).trim() ? lineStart(at) : at;
+        return text.slice(start);
+      }
+      return afterContents > 0 ? text.slice(afterContents) : text;
     }
 
     function chunkify(text) {
       const out = []; let chapter = '';
       let buf = '';
       const flush = () => { if (buf.trim().length > 20) out.push({ text: buf.trim(), chapter }); buf = ''; };
-      text.split('\n').forEach((raw) => {
+      const lines = text.split('\n');
+      // A short title-case line followed by a capitalised one is a heading, not a wrapped sentence.
+      const isHeading = (line, i) => line.length < 60 && !/[.!?,;:]$/.test(line)
+        && line.split(/\s+/).filter((w) => /^[^a-z]*[A-Z0-9]/.test(w)).length / line.split(/\s+/).length >= 0.6
+        && /^[^a-z]*[A-Z“"‘']/.test((lines.slice(i + 1).find((l) => l.trim()) || 'A').trim());
+      lines.forEach((raw, index) => {
         const line = raw.trim();
         if (!line) return;
+        if (isHeading(line, index)) { flush(); buf = line; flush(); return; }
         if (/^[=\-*_~#\s]{3,}$/.test(line)) return;
         const h = line.match(/^#{1,3}\s+(.*)/);
         if (h) { flush(); chapter = h[1]; return; }
@@ -569,8 +633,10 @@
           buf += (buf ? ' ' : '') + sentence;
           if (buf.length >= 200) flush();
         });
-        flush();
+        // A line cut off mid-sentence (hard-wrapped text, PDFs) carries on into the next one.
+        if (/[.!?…”"’:)]$/.test(line) || buf.length > 420) flush();
       });
+      flush();
       return out;
     }
 
@@ -639,7 +705,6 @@
               <button type="button" data-act="restart">${icon('restart')}<span>Restart</span></button>
             </div>
           </div>
-          <p class="feed-tip">Select words to highlight or note them.</p>
         </article>`).join('');
       const at = Math.min(store.get('pos:' + slug, 0), chunks.length - 1);
       feedView.scrollTop = 0;
@@ -724,15 +789,15 @@
       }
     });
 
-    /* Listening: Grok voices, spoken by Latch's voice server (Readable has no server of its own).
+    /* Listening: Gemini voices, spoken by Latch's voice server (Readable has no server of its own).
        Each passage is one audio file; while one plays the next two are fetched, so reading runs on. */
     const SPEAK = 'https://latch-reader.netlify.app/api/speak';
     const voiceSelect = document.getElementById('voiceSelect');
     const voiceAudio = new Audio();
     const clips = new Map();          // "voice|slug|i" -> Promise<object URL>
     let listening = false, speakingAt = -1, turn = 0;
-    voiceSelect.value = store.get('voice', 'Rex');
-    if (!voiceSelect.value) voiceSelect.value = 'Rex';
+    voiceSelect.value = store.get('voice', 'Charon');
+    if (!voiceSelect.value) voiceSelect.value = 'Charon';
     voiceSelect.addEventListener('change', () => {
       store.set('voice', voiceSelect.value);
       if (listening) listenFrom(speakingAt);
