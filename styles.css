@@ -731,6 +731,8 @@ body.mode-feed .feed-view{scroll-padding-top:45px}
 .feed-tools{align-items:center;gap:8px;justify-content:flex-start;padding:10px 24px 4px;background:var(--bg-primary)}
 .feed-tools span{min-width:0;max-width:min(42vw,350px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-secondary);font-size:13px;margin-right:auto}
 .feed-tools button{font-weight:600;color:var(--text-primary);min-height:40px;padding:8px 16px}
+#savedFilter{display:inline-flex;align-items:center;justify-content:center;gap:7px;line-height:1;white-space:nowrap}
+#savedFilter .action-icon{display:block;width:18px;height:18px}
 .feed-slide{min-height:calc(var(--fh,80vh) - 55px);padding-top:50px}
 .feed-acts button{min-height:42px;font-weight:600}
 .feed-empty{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1fr);align-items:center;gap:clamp(28px,5vw,64px);max-width:1120px;text-align:left;padding:clamp(32px,5vw,64px) 28px}
