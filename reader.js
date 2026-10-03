@@ -1,15 +1,3 @@
-  const BOOKS = [
-    { id: 'recreating-world', title: 'Recreating Your World', file: 'books/recreating-world.txt' },
-    { id: 'play-like-a-man', title: 'Play Like a Man, Win Like a Woman', file: 'books/play-like-a-man-win-like-a-woman.txt' },
-    { id: 'angels-of-money', title: 'Provoking the Angels of Money', file: 'books/angels-of-money.txt' },
-    { id: 'seven-spirits-of-god', title: 'The Seven Spirits of God', file: 'books/seven-spirits-of-god.txt' },
-    { id: 'seven-things-holy-spiritiu', title: 'The 7 Things the Holy Spirit Will Do in You', file: 'books/seven-things-holy-spiritiu.txt' },
-    { id: 'seven-things-holy-spirit', title: '7 Things the Holy Spirit Will Do For You', file: 'books/7-things-the-Holy-Spirit-will-do-for-you.txt' },
-    { id: 'holy-spirit', title: 'The Holy Spirit and You', file: 'books/holy-spirit.txt' },
-    { id: 'how-to-pray', title: 'How to Pray', file: 'books/how-to-pray.txt' },
-    { id: 'nearly-all-the-men-in-lagos-are-mad', title: 'Nearly All the Men in Lagos Are Mad', file: 'books/nearly-all-the-men-in-lagos-are-mad.txt' }
-  ];
-
   class SpeedReader {
     constructor() {
       this.words = [];
@@ -214,33 +202,6 @@
        BOOK / READER
        ========================= */
 
-    async loadBook(bookId) {
-      if (!bookId) return;
-
-      this.pause();
-      this.bookPage.innerHTML = '<div class="welcome"><p>Loading book...</p></div>';
-
-      try {
-        const filename = BOOKS.find((book) => book.id === bookId)?.file;
-        if (!filename) throw new Error(`Unknown bookId: ${bookId}`);
-
-        const response = await fetch(filename);
-        if (!response.ok || !response.headers.get('content-type')?.includes('text/plain')) {
-          throw new Error('Book text is unavailable.');
-        }
-        const text = await response.text();
-        this.loadText(text);
-      } catch (error) {
-        console.error('Error loading book:', error);
-        this.bookPage.innerHTML = `
-          <div class="welcome">
-            <h2 style="color: var(--text-primary); margin-bottom: 12px;">Error Loading Book</h2>
-            <p>Please try again or select a different book.</p>
-          </div>
-        `;
-      }
-    }
-
     async loadUploadedFile(file) {
       if (!file) return;
 
@@ -258,7 +219,7 @@
           const text = await file.text();
 
           if (!text.trim()) {
-            throw new Error('No readable text found in this TXT file.');
+            throw new Error('No readable text found in this txt file.');
           }
 
           const title = fileName.replace(/\.txt$/i, '');
@@ -272,7 +233,7 @@
         }
 
         if (!window.pdfjsLib) {
-          throw new Error('PDF reader library is not available.');
+          throw new Error('pdf reader library is not available.');
         }
 
         window.pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -297,7 +258,7 @@
         const text = pages.join('\n\n');
 
         if (!text.trim()) {
-          throw new Error('No readable text found in this PDF.');
+          throw new Error('No readable text found in this pdf.');
         }
 
         const title = fileName.replace(/\.pdf$/i, '');
@@ -308,7 +269,7 @@
         this.bookPage.innerHTML = `
           <div class="welcome">
             <h2 style="color: var(--text-primary); margin-bottom: 12px;">Could not read that file</h2>
-            <p>Try a PDF with selectable text or a plain .txt file. Scanned image PDFs need OCR before they can work here.</p>
+            <p>Try a pdf with selectable text or a plain .txt file. Scanned image pdfs need text recognition before they can work here.</p>
           </div>
         `;
       } finally {
@@ -484,7 +445,7 @@
           this.bookPage.innerHTML += `
             <div class="welcome" style="margin-top: 60px;">
               <h2 style="color: var(--text-primary); margin-bottom: 12px;">Finished!</h2>
-              <p>You just read ${this.words.length} words at ${this.wpm} WPM.</p>
+              <p>You just read ${this.words.length} words at ${this.wpm} words/min.</p>
             </div>
           `;
           return;
@@ -605,13 +566,13 @@
     function render() {
       setH();
       if (!chunks.length) {
-        feedBookName.textContent = 'Choose a book to begin';
+        feedBookName.textContent = 'Add a book to begin';
         list.innerHTML = '<div class="feed-empty">'
           + '<div class="welcome-hero feed-hero"><img class="hero-dark" src="https://mariangasinu.com/wp-content/uploads/2026/09/readable-dark-scaled.png" alt="Readable artwork: gold glasses showing one word at a time" width="1600" height="992" decoding="async" />'
           + '<img class="hero-light" src="https://mariangasinu.com/wp-content/uploads/2026/09/readable-light-scaled.png" alt="" width="1600" height="992" decoding="async" /></div>'
-          + '<div class="feed-empty-copy"><span class="feed-eyebrow">READABLE / READ YOUR WAY</span><h2>One thought at a time.</h2>'
-          + '<p>Turn a book into a scroll you can actually stay with. Save the parts that matter and research an idea whenever curiosity strikes.</p>'
-          + '<div class="feed-empty-actions"><button type="button" data-empty-library>Choose a book</button><button type="button" data-empty-upload>Add PDF or TXT</button></div>'
+          + '<div class="feed-empty-copy"><span class="feed-eyebrow">Read your way</span><h2>One thought at a time.</h2>'
+          + '<p>Turn your own book into a scroll you can actually stay with. Save the parts that matter and research an idea whenever curiosity strikes.</p>'
+          + '<div class="feed-empty-actions"><button type="button" data-empty-upload>Add a book</button><button type="button" data-empty-library>Your books</button></div>'
           + '<p class="feed-empty__note">Your place, saved passages, and uploads stay in this browser.</p></div></div>';
         fill.style.width = '0';
         return;
@@ -745,35 +706,25 @@
     })();
     let group;
     let uploadedBooks = [];
-    const builtInGroup = document.createElement('optgroup');
-    builtInGroup.label = 'Books';
-    BOOKS.forEach((book) => {
-      const option = document.createElement('option');
-      option.value = book.id;
-      option.textContent = book.title;
-      builtInGroup.appendChild(option);
-    });
-    bookSelect.appendChild(builtInGroup);
     function clearCurrentBook() {
       bookSelect.value = '';
       store.set('currentBookId', '');
       slug = ''; title = ''; chunks = [];
       reader.pause(); reader.words = []; reader.wordElements = [];
-      reader.bookPage.innerHTML = '<div class="welcome"><h2>Choose a book</h2><p>Tap the upload icon to add a PDF or TXT, or open your library.</p></div>';
+      reader.bookPage.innerHTML = '<div class="welcome"><h2>Add a book</h2><p>Upload a pdf or txt file to start reading.</p></div>';
       reader.stats.style.display = 'none';
       reader.progressBar.style.width = '0';
       render();
     }
     function renderLibrary() {
       libraryList.innerHTML = (bookSelect.value ? '<button type="button" class="library-close-current" data-close-book>Close current book</button>' : '')
-        + '<h3 class="library-section">Books</h3>'
-        + BOOKS.map((b) => `<div class="library-row"><button type="button" class="library-open" data-open="${esc(b.id)}">${esc(b.title)}</button></div>`).join('')
-        + '<h3 class="library-section">Your uploads</h3>'
+        + '<button type="button" class="library-add" data-library-upload>Add a book from this device</button>'
+        + '<h3 class="library-section">Your books</h3>'
         + (uploadedBooks.length ? uploadedBooks.map((b) => `<div class="library-row">
             <button type="button" class="library-open" data-open="${esc(b.id)}">${esc(b.title)}</button>
             <button type="button" class="library-remove" data-delete="${esc(b.id)}" aria-label="Remove ${esc(b.title)} from your library" title="Remove book">×</button>
           </div>`).join('')
-        : '<div class="library-empty">No uploads yet.<p><button type="button" data-library-upload>Add a PDF or TXT</button></p></div>');
+        : '<div class="library-empty">No books added yet. Your uploads stay in this browser.</div>');
     }
     function addOption(b) {
       uploadedBooks = [b, ...uploadedBooks.filter((x) => x.id !== b.id)].sort((x, y) => y.at - x.at);
@@ -830,9 +781,8 @@
     let uploading = false;
     const origUpload = reader.loadUploadedFile.bind(reader);
     reader.loadUploadedFile = async function (file) { uploading = true; try { await origUpload(file); } finally { uploading = false; } };
-    const origLoadBook = reader.loadBook.bind(reader);
     reader.loadBook = async function (id) {
-      if (!id || !id.startsWith('up:')) return origLoadBook(id);
+      if (!id || !id.startsWith('up:')) return;
       this.pause();
       this.bookPage.innerHTML = '<div class="welcome"><p>Loading book...</p></div>';
       try { const b = await db.get(id); if (!b) throw new Error('missing'); this.loadText(b.text); }
@@ -874,11 +824,7 @@
     };
 
     if (document.body.dataset.page === 'feed') render();
-    const previousBook = store.get('currentBookId', '');
-    if (BOOKS.some((book) => book.id === previousBook)) {
-      bookSelect.value = previousBook;
-      reader.loadBook(previousBook);
-    }
+    if (store.get('currentBookId', '') && !store.get('currentBookId', '').startsWith('up:')) store.set('currentBookId', '');
     document.addEventListener('keydown', (e) => {
       if (document.body.dataset.page !== 'feed' || dlg.open || libraryDialog.open || researchDialog.open || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
       const slides = list.children; if (!slides.length) return;
