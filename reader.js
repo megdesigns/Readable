@@ -782,7 +782,11 @@
       const i = Number(button.closest('.feed-slide').dataset.i);
       if (action === 'like' || action === 'saved') togglePassage(action, i);
       if (action === 'note') openNote({ ...passageItem(i), quote: chunks[i].text });
-      if (action === 'listen') return listening && speakingAt === i ? stopListening() : listenFrom(i);
+      if (action === 'listen') {
+        if (listening && speakingAt === i) return stopListening();
+        unlockAudio();
+        return listenFrom(i);
+      }
       if (action === 'restart') {
         store.set('pos:' + slug, 0);
         feedView.scrollTo({ top: 0, behavior: 'smooth' });
@@ -802,6 +806,23 @@
       store.set('voice', voiceSelect.value);
       if (listening) listenFrom(speakingAt);
     });
+
+    // An iPhone only lets a page start sound inside a tap, and the voice takes a few seconds
+    // to arrive. So the tap plays a moment of silence (in the voice's own format: 16-bit mono,
+    // 24 kHz), which unlocks this player for the real voice that follows.
+    const SILENCE = (() => {
+      const rate = 24000, n = Math.round(rate * 0.3), buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+      const text = (at, str) => [...str].forEach((c, k) => v.setUint8(at + k, c.charCodeAt(0)));
+      text(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); text(8, 'WAVE'); text(12, 'fmt ');
+      v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+      text(36, 'data'); v.setUint32(40, n * 2, true);
+      return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    })();
+    function unlockAudio() {
+      voiceAudio.src = SILENCE;
+      voiceAudio.play().catch(() => {});
+    }
 
     function clipFor(i) {
       const key = `${voiceSelect.value}|${slug}|${i}`;
@@ -837,7 +858,7 @@
     async function listenFrom(i) {
       const mine = ++turn;
       listening = true; speakingAt = i;
-      voiceAudio.pause();
+      if (voiceAudio.src !== SILENCE) voiceAudio.pause();
       paintListen();
       const slide = list.children[i];
       if (slide && current() !== i) feedView.scrollTo({ top: slide.offsetTop - 3, behavior: 'smooth' });
@@ -851,7 +872,7 @@
         if (i + 1 >= chunks.length) return stopListening();
         listenFrom(i + 1);
       };
-      voiceAudio.play().catch(() => stopListening());
+      voiceAudio.play().catch(() => { stopListening(); alert('Tap Listen again to start reading.'); });
       clipFor(i + 1).catch(() => {}); clipFor(i + 2).catch(() => {});
       if ('mediaSession' in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title, artist: `Readable · ${voiceSelect.value}` });
     }
