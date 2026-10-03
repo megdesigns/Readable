@@ -11,20 +11,28 @@
 
   <!-- Open Graph / Social Media Preview -->
   <meta property="og:title" content="Readable by Marian" />
-  <meta property="og:description" content="Read one thought at a time. Save and research what stays with you." />
+  <meta property="og:description" content="Read one thought at a time. Like, save, highlight, and make notes as you go." />
   <meta property="og:image" content="https://mariangasinu.com/wp-content/uploads/2025/12/Black-White-Minimalist-Business-Logo-1080-x-1080-px-2.png" />
   <meta property="og:type" content="website" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Readable by Marian" />
-  <meta name="twitter:description" content="Read one thought at a time. Save and research what stays with you." />
+  <meta name="twitter:description" content="Read one thought at a time. Like, save, highlight, and make notes as you go." />
   <meta name="twitter:image" content="https://mariangasinu.com/wp-content/uploads/2025/12/Black-White-Minimalist-Business-Logo-1080-x-1080-px-2.png" />
 
-  <link rel="stylesheet" href="styles.css?v=upload-only-1" />
+  <link rel="stylesheet" href="styles.css?v=reader-tools-1" />
 </head>
 
 <body class="mode-feed" data-page="feed">
+  <svg class="icon-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="r-heart" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></symbol>
+    <symbol id="r-bookmark" viewBox="0 0 24 24"><path d="M5 3.5h14v17l-7-4.6-7 4.6z"/></symbol>
+    <symbol id="r-note" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
+    <symbol id="r-restart" viewBox="0 0 24 24"><path d="M20 7v5h-5M19 12a7 7 0 1 1-2-5"/></symbol>
+    <symbol id="r-highlight" viewBox="0 0 24 24"><path d="m4 17 9-9 4 4-9 9H4zM12 9l3-3 4 4-3 3M3 22h18"/></symbol>
+  </svg>
+
   <div class="mode-bar">
     <a class="brand" href="index.html" aria-label="Readable home"><span class="brand__logo" role="img" aria-label="Readable"></span><span>Readable</span></a>
     <nav class="page-nav" aria-label="Reading pages">
@@ -120,19 +128,22 @@
 
   <div class="feed-view" id="feedView" tabindex="0" aria-label="Scroll feed">
     <div class="feed-bar"><i id="feedBarFill"></i></div>
-    <div class="feed-tools"><span id="feedBookName">Choose a book to begin</span><button type="button" id="feedBookButton">Book</button><button type="button" id="savedFilter" aria-haspopup="dialog">☆ Saved · 0</button></div>
+    <div class="feed-tools"><span id="feedBookName">Choose a book to begin</span><button type="button" id="savedFilter" aria-haspopup="dialog"><svg class="action-icon" aria-hidden="true"><use href="#r-bookmark"></use></svg>Saved · 0</button></div>
     <div id="feedList"></div>
   </div>
 
   <dialog class="saved-dialog" id="savedDialog" aria-labelledby="savedTitle">
     <div class="saved-head"><h2 id="savedTitle">Saved<span id="savedCount"></span></h2><button type="button" class="saved-close" id="savedClose" aria-label="Close saved"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg></button></div>
-    <div class="saved-grid" id="savedGrid"></div>
+    <div class="saved-tabs" id="savedTabs" role="tablist" aria-label="Saved items"></div>
+    <div class="saved-grid" id="savedGrid" role="tabpanel"></div>
   </dialog>
 
-  <dialog class="saved-dialog research-dialog" id="researchDialog" aria-labelledby="researchTitle">
-    <div class="saved-head"><h2 id="researchTitle">Research this passage</h2><button type="button" class="saved-close" id="researchClose" aria-label="Close research"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg></button></div>
-    <div class="research-body"><p class="research-source" id="researchSource"></p><blockquote id="researchQuote"></blockquote><p>Explore this idea or keep the passage for later.</p><div class="research-actions"><a id="researchWeb" target="_blank" rel="noopener noreferrer">Search the web ↗</a><a id="researchWiki" target="_blank" rel="noopener noreferrer">Search Wikipedia ↗</a><button type="button" id="researchCopy">Copy passage</button></div></div>
+  <dialog class="saved-dialog note-dialog" id="noteDialog" aria-labelledby="noteTitle">
+    <div class="saved-head"><h2 id="noteTitle">Note on this passage</h2><button type="button" class="saved-close" id="noteClose" aria-label="Close note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg></button></div>
+    <form class="note-form" id="noteForm"><p id="noteSource"></p><blockquote id="noteQuote"></blockquote><label for="noteText">Your note</label><textarea id="noteText" rows="6" placeholder="What do you want to remember?" required></textarea><button type="submit">Save note</button></form>
   </dialog>
+
+  <div class="selection-bar" id="selectionBar" hidden><span>Selected text</span><button type="button" data-selection-action="highlight"><svg class="action-icon" aria-hidden="true"><use href="#r-highlight"></use></svg>Highlight</button><button type="button" data-selection-action="note"><svg class="action-icon" aria-hidden="true"><use href="#r-note"></use></svg>Note</button></div>
 
   <dialog class="saved-dialog library-dialog" id="libraryDialog" aria-labelledby="libraryTitle">
     <div class="saved-head"><h2 id="libraryTitle">Your books</h2><button type="button" class="saved-close" id="libraryClose" aria-label="Close books"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg></button></div>
@@ -211,6 +222,6 @@
   </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="reader.js?v=upload-only-1" defer></script>
+<script src="reader.js?v=reader-tools-1" defer></script>
 </body>
 </html>

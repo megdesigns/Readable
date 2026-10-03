@@ -507,8 +507,10 @@
     const libraryList = document.getElementById('libraryList');
     const filterBtn = document.getElementById('savedFilter');
     const feedBookName = document.getElementById('feedBookName');
-    const researchDialog = document.getElementById('researchDialog');
-    const researchQuote = document.getElementById('researchQuote');
+    const savedTabs = document.getElementById('savedTabs');
+    const selectionBar = document.getElementById('selectionBar');
+    const noteDialog = document.getElementById('noteDialog');
+    const noteText = document.getElementById('noteText');
     const dlg = document.getElementById('savedDialog');
     const grid = document.getElementById('savedGrid');
     // Everything is kept in this browser's localStorage. Nothing is sent anywhere.
@@ -517,10 +519,19 @@
       set(k, v) { try { localStorage.setItem('readable:' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
     };
     const items = () => store.get('savedItems', []);
+    const liked = () => store.get('likedItems', []);
+    const highlights = () => store.get('highlights', []);
+    const notes = () => store.get('readerNotes', []);
     let chunks = [], slug = '', title = '';
+    let savedTab = 'saved';
+    let activeSelection = null;
+    let noteContext = null;
+    let editingNoteId = null;
 
     const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const paintCount = () => { filterBtn.textContent = '☆ Saved · ' + items().length; };
+    const icon = (name) => `<svg class="action-icon" aria-hidden="true"><use href="#r-${name}"></use></svg>`;
+    const countAll = () => items().length + liked().length + highlights().length + notes().length;
+    const paintCount = () => { filterBtn.innerHTML = `${icon('bookmark')}Saved · ${countAll()}`; };
     paintCount();
 
     // Skip the title page, acknowledgements, preface: begin at the Introduction (or Chapter 1) when the book has one.
@@ -561,9 +572,41 @@
       return out;
     }
 
+    const passageId = (i) => slug + ':' + i;
+    const passageItem = (i) => ({ id: passageId(i), slug, title, chapter: chunks[i].chapter, i, n: chunks.length, text: chunks[i].text, at: Date.now() });
+    function highlightedHTML(i) {
+      const source = chunks[i].text;
+      const ranges = highlights().filter((x) => x.slug === slug && x.i === i)
+        .sort((a, b) => a.start - b.start);
+      let html = '', offset = 0;
+      for (const range of ranges) {
+        const start = Math.max(offset, range.start);
+        const end = Math.min(source.length, range.end);
+        if (end <= start) continue;
+        html += esc(source.slice(offset, start)) + '<mark>' + esc(source.slice(start, end)) + '</mark>';
+        offset = end;
+      }
+      return html + esc(source.slice(offset));
+    }
+    function paintSlide(i) {
+      const slide = list.querySelector(`.feed-slide[data-i="${i}"]`);
+      if (!slide || !chunks[i]) return;
+      slide.querySelector('.feed-text').innerHTML = highlightedHTML(i);
+      const id = passageId(i);
+      for (const [kind, records] of [['like', liked()], ['saved', items()]]) {
+        const button = slide.querySelector(`[data-act="${kind}"]`);
+        const on = records.some((x) => x.id === id);
+        button.classList.toggle('on', on);
+        button.setAttribute('aria-pressed', String(on));
+        button.setAttribute('aria-label', (kind === 'like' ? (on ? 'Unlike' : 'Like') : (on ? 'Remove saved passage' : 'Save passage')));
+      }
+      slide.querySelector('[data-act="note"]').classList.toggle('on', notes().some((x) => x.slug === slug && x.i === i));
+    }
+
     const setH = () => feedView.style.setProperty('--fh', feedView.clientHeight + 'px');
     window.addEventListener('resize', setH);
     function render() {
+      clearSelection();
       setH();
       if (!chunks.length) {
         feedBookName.textContent = 'Add a book to begin';
@@ -571,7 +614,7 @@
           + '<div class="welcome-hero feed-hero"><img class="hero-dark" src="https://mariangasinu.com/wp-content/uploads/2026/09/readable-dark-scaled.png" alt="Readable artwork: gold glasses showing one word at a time" width="1600" height="992" decoding="async" />'
           + '<img class="hero-light" src="https://mariangasinu.com/wp-content/uploads/2026/09/readable-light-scaled.png" alt="" width="1600" height="992" decoding="async" /></div>'
           + '<div class="feed-empty-copy"><span class="feed-eyebrow">Read your way</span><h2>One thought at a time.</h2>'
-          + '<p>Turn your own book into a scroll you can actually stay with. Save the parts that matter and research an idea whenever curiosity strikes.</p>'
+          + '<p>Turn your own book into a scroll you can actually stay with. Like, save, highlight, and make notes as you read.</p>'
           + '<div class="feed-empty-actions"><button type="button" data-empty-upload>Add a book</button><button type="button" data-empty-library>Your books</button></div>'
           + '<p class="feed-empty__note">Your place, saved passages, and uploads stay in this browser.</p></div></div>';
         fill.style.width = '0';
@@ -579,15 +622,21 @@
       }
       feedBookName.textContent = title;
       const saved = new Set(items().filter((x) => x.slug === slug).map((x) => x.i));
+      const hearts = new Set(liked().filter((x) => x.slug === slug).map((x) => x.i));
+      const noted = new Set(notes().filter((x) => x.slug === slug).map((x) => x.i));
       list.innerHTML = chunks.map((c, i) => `
         <article class="feed-slide" data-i="${i}">
           <div class="feed-meta"><b>${esc(title)}</b>${c.chapter ? '<span>· ' + esc(c.chapter) + '</span>' : ''}<span>· ${i + 1} of ${chunks.length}</span></div>
-          <p class="feed-text">${esc(c.text)}</p>
-          <div class="feed-acts">
-            <button type="button" data-act="saved" class="${saved.has(i) ? 'on' : ''}" aria-pressed="${saved.has(i)}">${saved.has(i) ? '★ Saved' : '☆ Save'}</button>
-            <button type="button" data-act="research">⌕ Research</button>
-            <button type="button" data-act="book">▤ Book</button>
+          <div class="feed-reading">
+            <p class="feed-text">${highlightedHTML(i)}</p>
+            <div class="feed-acts" aria-label="Passage actions">
+              <button type="button" data-act="like" class="${hearts.has(i) ? 'on' : ''}" aria-label="${hearts.has(i) ? 'Unlike' : 'Like'}" aria-pressed="${hearts.has(i)}">${icon('heart')}<span>Like</span></button>
+              <button type="button" data-act="saved" class="${saved.has(i) ? 'on' : ''}" aria-label="${saved.has(i) ? 'Remove saved passage' : 'Save passage'}" aria-pressed="${saved.has(i)}">${icon('bookmark')}<span>Save</span></button>
+              <button type="button" data-act="note" class="${noted.has(i) ? 'on' : ''}">${icon('note')}<span>Note</span></button>
+              <button type="button" data-act="restart">${icon('restart')}<span>Restart</span></button>
+            </div>
           </div>
+          <p class="feed-tip">Select words to highlight or note them.</p>
         </article>`).join('');
       const at = Math.min(store.get('pos:' + slug, 0), chunks.length - 1);
       feedView.scrollTop = 0;
@@ -615,76 +664,173 @@
       if (document.body.dataset.page === 'feed' && chunks.length) store.set('pos:' + slug, current());
     });
 
-    function setBtn(b, on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); b.textContent = on ? '★ Saved' : '☆ Save'; }
-
     const openLibrary = () => { renderLibrary(); libraryDialog.showModal(); };
     list.addEventListener('click', (e) => {
-      if (e.target.closest('[data-empty-library], [data-act="book"]')) openLibrary();
+      if (e.target.closest('[data-empty-library]')) openLibrary();
       if (e.target.closest('[data-empty-upload]')) reader.fileUpload.click();
-      const research = e.target.closest('[data-act="research"]');
-      if (research) {
-        const passage = chunks[Number(research.closest('.feed-slide').dataset.i)];
-        const query = title + ' ' + passage.text.slice(0, 120);
-        document.getElementById('researchSource').textContent = title + (passage.chapter ? ' · ' + passage.chapter : '');
-        researchQuote.textContent = passage.text;
-        document.getElementById('researchWeb').href = 'https://www.google.com/search?q=' + encodeURIComponent(query);
-        document.getElementById('researchWiki').href = 'https://en.wikipedia.org/w/index.php?search=' + encodeURIComponent(passage.text.slice(0, 90));
-        researchDialog.showModal();
-      }
-    });
-    document.getElementById('feedBookButton').addEventListener('click', openLibrary);
-    document.getElementById('researchClose').addEventListener('click', () => researchDialog.close());
-    researchDialog.addEventListener('click', (e) => { if (e.target === researchDialog) researchDialog.close(); });
-    document.getElementById('researchCopy').addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(researchQuote.textContent + '\n— ' + document.getElementById('researchSource').textContent);
-        document.getElementById('researchCopy').textContent = 'Copied';
-        setTimeout(() => { document.getElementById('researchCopy').textContent = 'Copy passage'; }, 1800);
-      } catch (e) { document.getElementById('researchCopy').textContent = 'Copy unavailable'; }
     });
 
-    // Save / unsave one passage
+    function togglePassage(kind, i) {
+      const key = kind === 'like' ? 'likedItems' : 'savedItems';
+      const all = kind === 'like' ? liked() : items();
+      const id = passageId(i);
+      store.set(key, all.some((x) => x.id === id)
+        ? all.filter((x) => x.id !== id)
+        : [passageItem(i), ...all]);
+      paintSlide(i);
+      paintCount();
+    }
+    function openNote(context, existing = null) {
+      clearSelection();
+      noteContext = context;
+      editingNoteId = existing?.id || null;
+      document.getElementById('noteTitle').textContent = existing ? 'Edit note' : 'Note on this passage';
+      document.getElementById('noteSource').textContent = context.title + (context.chapter ? ' · ' + context.chapter : '');
+      document.getElementById('noteQuote').textContent = context.quote || context.text;
+      noteText.value = existing?.note || '';
+      noteDialog.showModal();
+      noteText.focus();
+    }
+    document.getElementById('noteForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const body = noteText.value.trim();
+      if (!body || !noteContext) return;
+      const entry = { ...noteContext, id: editingNoteId || `note:${Date.now()}:${Math.random().toString(36).slice(2)}`, note: body, at: Date.now() };
+      store.set('readerNotes', [entry, ...notes().filter((x) => x.id !== editingNoteId)]);
+      noteDialog.close();
+      if (entry.slug === slug) paintSlide(entry.i);
+      paintCount();
+      if (dlg.open) renderSaved();
+      noteContext = null;
+      editingNoteId = null;
+    });
+    document.getElementById('noteClose').addEventListener('click', () => noteDialog.close());
+    noteDialog.addEventListener('click', (e) => { if (e.target === noteDialog) noteDialog.close(); });
+
     list.addEventListener('click', (e) => {
-      const b = e.target.closest('button[data-act="saved"]'); if (!b) return;
-      const i = +b.closest('.feed-slide').dataset.i, id = slug + ':' + i;
-      let all = items();
-      if (all.some((x) => x.id === id)) { all = all.filter((x) => x.id !== id); setBtn(b, false); }
-      else {
-        all.unshift({ id, slug, title, chapter: chunks[i].chapter, i, n: chunks.length, text: chunks[i].text, at: Date.now() });
-        setBtn(b, true);
+      const button = e.target.closest('button[data-act]');
+      if (!button || !button.closest('.feed-slide')) return;
+      const action = button.dataset.act;
+      const i = Number(button.closest('.feed-slide').dataset.i);
+      if (action === 'like' || action === 'saved') togglePassage(action, i);
+      if (action === 'note') openNote({ ...passageItem(i), quote: chunks[i].text });
+      if (action === 'restart') {
+        store.set('pos:' + slug, 0);
+        feedView.scrollTo({ top: 0, behavior: 'smooth' });
       }
-      store.set('savedItems', all); paintCount();
     });
 
-    // Saved cards
+    function readSelection() {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.rangeCount) return null;
+      const range = selection.getRangeAt(0);
+      const startElement = range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement;
+      const passage = startElement?.closest('.feed-text');
+      if (!passage || !passage.contains(range.endContainer)) return null;
+      const slide = passage.closest('.feed-slide');
+      const i = Number(slide?.dataset.i);
+      if (!Number.isInteger(i) || !chunks[i]) return null;
+      const before = document.createRange();
+      before.selectNodeContents(passage);
+      before.setEnd(range.startContainer, range.startOffset);
+      const start = before.toString().length;
+      const end = start + range.toString().length;
+      if (end - start < 2) return null;
+      return { slug, i, start, end, text: chunks[i].text.slice(start, end) };
+    }
+    function captureSelection() {
+      const selected = readSelection();
+      if (!selected) return;
+      activeSelection = selected;
+      selectionBar.hidden = false;
+    }
+    document.addEventListener('selectionchange', () => setTimeout(captureSelection, 0));
+    list.addEventListener('mouseup', () => setTimeout(captureSelection, 0));
+    list.addEventListener('touchend', () => setTimeout(captureSelection, 20));
+    function clearSelection() {
+      activeSelection = null;
+      selectionBar.hidden = true;
+      window.getSelection()?.removeAllRanges();
+    }
+    selectionBar.addEventListener('mousedown', (e) => e.preventDefault());
+    selectionBar.addEventListener('click', (e) => {
+      const button = e.target.closest('[data-selection-action]');
+      if (!button || !activeSelection || activeSelection.slug !== slug) return;
+      const { i, start, end, text } = activeSelection;
+      if (button.dataset.selectionAction === 'note') {
+        openNote({ ...passageItem(i), quote: text });
+      } else {
+        const all = highlights();
+        const overlap = all.filter((x) => x.slug === slug && x.i === i && x.end >= start && x.start <= end);
+        const first = Math.min(start, ...overlap.map((x) => x.start));
+        const last = Math.max(end, ...overlap.map((x) => x.end));
+        const entry = { ...passageItem(i), id: overlap[0]?.id || `highlight:${Date.now()}:${Math.random().toString(36).slice(2)}`,
+          start: first, end: last, excerpt: chunks[i].text.slice(first, last), at: Date.now() };
+        store.set('highlights', [entry, ...all.filter((x) => !overlap.includes(x))]);
+        paintSlide(i);
+        paintCount();
+      }
+      clearSelection();
+    });
+
+    const categories = [
+      ['liked', 'Liked', liked], ['highlights', 'Highlights', highlights],
+      ['saved', 'Saved', items], ['notes', 'Notes', notes]
+    ];
     function renderSaved() {
-      const all = items();
-      document.getElementById('savedCount').textContent = all.length ? ' · ' + all.length : '';
+      document.getElementById('savedCount').textContent = countAll() ? ` · ${countAll()} kept` : '';
+      savedTabs.innerHTML = categories.map(([key, label, read]) => `
+        <button type="button" role="tab" id="saved-tab-${key}" data-tab="${key}" aria-selected="${savedTab === key}">${label} <span>${read().length}</span></button>`).join('');
+      grid.setAttribute('aria-labelledby', 'saved-tab-' + savedTab);
+      const all = (categories.find(([key]) => key === savedTab)?.[2]() || []).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
       grid.innerHTML = all.length ? all.map((x) => `
         <article class="saved-card" data-id="${esc(x.id)}">
           <div class="feed-meta"><b>${esc(x.title)}</b>${x.chapter ? '<span>· ' + esc(x.chapter) + '</span>' : ''}<span>· ${x.i + 1} of ${x.n}</span></div>
-          <p>${esc(x.text)}</p>
-          <button type="button" class="saved-expand" aria-expanded="false">Read more</button>
-          <button type="button" data-remove="${esc(x.id)}">Remove</button>
+          <p class="saved-quote">${esc(savedTab === 'highlights' ? x.excerpt : savedTab === 'notes' ? (x.quote || x.text) : x.text)}</p>
+          ${savedTab === 'notes' ? `<p class="saved-note-text">${esc(x.note)}</p>` : ''}
+          <div class="saved-card-actions"><button type="button" data-open="${esc(x.id)}">Read passage</button>${savedTab === 'notes' ? `<button type="button" data-edit="${esc(x.id)}">Edit note</button>` : ''}<button type="button" data-remove="${esc(x.id)}">Remove</button></div>
         </article>`).join('')
-        : '<div class="saved-empty"><h3>Nothing saved yet</h3><p>Tap Save on any passage while you scroll and it will show up here, on this device.</p></div>';
+        : `<div class="saved-empty"><h3>No ${savedTab} yet</h3><p>Keep something from a passage while you read and it will appear here on this device.</p></div>`;
     }
     filterBtn.addEventListener('click', () => { renderSaved(); dlg.showModal(); });
     document.getElementById('savedClose').addEventListener('click', () => dlg.close());
     dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
-    grid.addEventListener('click', (e) => {
-      const expand = e.target.closest('button.saved-expand');
-      if (expand) {
-        const expanded = expand.closest('.saved-card').classList.toggle('expanded');
-        expand.setAttribute('aria-expanded', String(expanded));
-        expand.textContent = expanded ? 'Show less' : 'Read more';
+    savedTabs.addEventListener('click', (e) => {
+      const tab = e.target.closest('[data-tab]');
+      if (!tab) return;
+      savedTab = tab.dataset.tab;
+      renderSaved();
+    });
+    grid.addEventListener('click', async (e) => {
+      const card = e.target.closest('.saved-card');
+      if (!card) return;
+      const source = categories.find(([key]) => key === savedTab);
+      const record = source[2]().find((x) => x.id === card.dataset.id);
+      if (!record) return;
+      if (e.target.closest('[data-edit]')) { openNote(record, record); return; }
+      if (e.target.closest('[data-open]')) {
+        if (record.slug === slug) {
+          dlg.close();
+          list.querySelector(`.feed-slide[data-i="${record.i}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
+        const uploaded = uploadedBooks.find((book) => book.id.toLowerCase().replace(/[^a-z0-9]+/g, '-') === record.slug);
+        if (uploaded) {
+          store.set('pos:' + record.slug, record.i);
+          bookSelect.value = uploaded.id;
+          await reader.loadBook(uploaded.id);
+          dlg.close();
+        } else {
+          window.alert('This book is no longer on this device. Add it again to read the passage.');
+        }
         return;
       }
-      const r = e.target.closest('button[data-remove]'); if (!r) return;
-      const id = r.dataset.remove, gone = items().find((x) => x.id === id);
-      store.set('savedItems', items().filter((x) => x.id !== id));
-      if (gone && gone.slug === slug) { const b = list.querySelector('.feed-slide[data-i="' + gone.i + '"] [data-act="saved"]'); if (b) setBtn(b, false); }
-      paintCount(); renderSaved();
+      if (!e.target.closest('[data-remove]')) return;
+      const key = { liked: 'likedItems', highlights: 'highlights', saved: 'savedItems', notes: 'readerNotes' }[savedTab];
+      store.set(key, source[2]().filter((x) => x.id !== record.id));
+      if (record.slug === slug) paintSlide(record.i);
+      paintCount();
+      renderSaved();
     });
 
     // ---- Your uploads: kept in this browser (IndexedDB) so they stay in the picker ----
@@ -826,7 +972,7 @@
     if (document.body.dataset.page === 'feed') render();
     if (store.get('currentBookId', '') && !store.get('currentBookId', '').startsWith('up:')) store.set('currentBookId', '');
     document.addEventListener('keydown', (e) => {
-      if (document.body.dataset.page !== 'feed' || dlg.open || libraryDialog.open || researchDialog.open || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+      if (document.body.dataset.page !== 'feed' || dlg.open || libraryDialog.open || noteDialog.open || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
       const slides = list.children; if (!slides.length) return;
       const i = current();
       if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); slides[Math.min(i + 1, slides.length - 1)].scrollIntoView({ behavior: 'smooth' }); }
