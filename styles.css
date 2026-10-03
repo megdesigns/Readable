@@ -816,3 +816,9 @@ body.light-mode .feed-text mark{background:#f3d77d;color:var(--text-primary)}
   .selection-bar{width:max-content;max-width:calc(100vw - 20px);bottom:calc(var(--footer-height,48px) + 15px)}
   .selection-bar span{display:none}
 }
+
+/* Reading voice picker, beside Saved */
+.voice-select{pointer-events:auto;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font:inherit;font-size:13px;font-weight:600;min-height:40px;padding:8px 28px 8px 14px;border-radius:999px;cursor:pointer;-webkit-appearance:none;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--text-secondary) 50%),linear-gradient(135deg,var(--text-secondary) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 55%,calc(100% - 11px) 55%;background-size:4px 4px;background-repeat:no-repeat}
+.voice-select:focus-visible{outline:2px solid var(--text-primary);outline-offset:3px}

@@ -25,7 +25,7 @@
   <meta name="twitter:description" content="Read faster while staying focused. Built by Marian." />
   <meta name="twitter:image" content="https://readable.mariangasinu.com/readable-home-icon-white.png" />
 
-  <link rel="stylesheet" href="styles.css?v=saved-icon-1" />
+  <link rel="stylesheet" href="styles.css?v=grok-voices-1" />
 </head>
 
 <body class="mode-speed" data-page="speed">
@@ -34,6 +34,8 @@
     <symbol id="r-bookmark" viewBox="0 0 24 24"><path d="M5 3.5h14v17l-7-4.6-7 4.6z"/></symbol>
     <symbol id="r-note" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
     <symbol id="r-restart" viewBox="0 0 24 24"><path d="M20 7v5h-5M19 12a7 7 0 1 1-2-5"/></symbol>
+    <symbol id="r-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+    <symbol id="r-pause" viewBox="0 0 24 24"><path d="M7 4.5v15M17 4.5v15"/></symbol>
     <symbol id="r-highlight" viewBox="0 0 24 24"><path d="m4 17 9-9 4 4-9 9H4zM12 9l3-3 4 4-3 3M3 22h18"/></symbol>
   </svg>
 
@@ -132,7 +134,7 @@
 
   <div class="feed-view" id="feedView" tabindex="0" aria-label="Scroll feed">
     <div class="feed-bar"><i id="feedBarFill"></i></div>
-    <div class="feed-tools"><span id="feedBookName">Choose a book to begin</span><button type="button" id="savedFilter" aria-haspopup="dialog"><svg class="action-icon" aria-hidden="true"><use href="#r-bookmark"></use></svg>Saved · 0</button></div>
+    <div class="feed-tools"><span id="feedBookName">Choose a book to begin</span><select id="voiceSelect" class="voice-select" aria-label="Reading voice"><option value="Rex">Rex</option><option value="Leo">Leo</option><option value="Sal">Sal</option><option value="Eve">Eve</option><option value="Ara">Ara</option></select><button type="button" id="savedFilter" aria-haspopup="dialog"><svg class="action-icon" aria-hidden="true"><use href="#r-bookmark"></use></svg>Saved · 0</button></div>
     <div id="feedList"></div>
   </div>
 
@@ -227,6 +229,6 @@
   </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="reader.js?v=saved-icon-1" defer></script>
+<script src="reader.js?v=grok-voices-1" defer></script>
 </body>
 </html>

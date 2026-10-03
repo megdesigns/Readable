@@ -514,7 +514,8 @@
     const noteText = document.getElementById('noteText');
     const dlg = document.getElementById('savedDialog');
     const grid = document.getElementById('savedGrid');
-    // Everything is kept in this browser's localStorage. Nothing is sent anywhere.
+    // Everything is kept in this browser's localStorage. The only thing sent anywhere is a
+    // passage you ask to hear, which goes to the voice server to be spoken.
     const store = {
       get(k, d) { try { return JSON.parse(localStorage.getItem('readable:' + k)) ?? d; } catch (e) { return d; } },
       set(k, v) { try { localStorage.setItem('readable:' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -634,6 +635,7 @@
               <button type="button" data-act="like" class="${hearts.has(i) ? 'on' : ''}" aria-label="${hearts.has(i) ? 'Unlike' : 'Like'}" aria-pressed="${hearts.has(i)}">${icon('heart')}<span>Like</span></button>
               <button type="button" data-act="saved" class="${saved.has(i) ? 'on' : ''}" aria-label="${saved.has(i) ? 'Remove saved passage' : 'Save passage'}" aria-pressed="${saved.has(i)}">${icon('bookmark')}<span>Save</span></button>
               <button type="button" data-act="note" class="${noted.has(i) ? 'on' : ''}">${icon('note')}<span>Note</span></button>
+              <button type="button" data-act="listen" aria-label="Listen from here">${icon('play')}<span>Listen</span></button>
               <button type="button" data-act="restart">${icon('restart')}<span>Restart</span></button>
             </div>
           </div>
@@ -715,11 +717,84 @@
       const i = Number(button.closest('.feed-slide').dataset.i);
       if (action === 'like' || action === 'saved') togglePassage(action, i);
       if (action === 'note') openNote({ ...passageItem(i), quote: chunks[i].text });
+      if (action === 'listen') return listening && speakingAt === i ? stopListening() : listenFrom(i);
       if (action === 'restart') {
         store.set('pos:' + slug, 0);
         feedView.scrollTo({ top: 0, behavior: 'smooth' });
       }
     });
+
+    /* Listening: Grok voices, spoken by Latch's voice server (Readable has no server of its own).
+       Each passage is one audio file; while one plays the next two are fetched, so reading runs on. */
+    const SPEAK = 'https://latch-reader.netlify.app/api/speak';
+    const voiceSelect = document.getElementById('voiceSelect');
+    const voiceAudio = new Audio();
+    const clips = new Map();          // "voice|slug|i" -> Promise<object URL>
+    let listening = false, speakingAt = -1, turn = 0;
+    voiceSelect.value = store.get('voice', 'Rex');
+    if (!voiceSelect.value) voiceSelect.value = 'Rex';
+    voiceSelect.addEventListener('change', () => {
+      store.set('voice', voiceSelect.value);
+      if (listening) listenFrom(speakingAt);
+    });
+
+    function clipFor(i) {
+      const key = `${voiceSelect.value}|${slug}|${i}`;
+      if (!chunks[i]) return Promise.reject(new Error('The end.'));
+      if (!clips.has(key)) {
+        const text = chunks[i].text.slice(0, 1800);
+        const p = fetch(`${SPEAK}?v=${encodeURIComponent(voiceSelect.value)}&t=${encodeURIComponent(text)}`)
+          .then(async (r) => {
+            if (r.ok) return URL.createObjectURL(await r.blob());
+            const data = await r.json().catch(() => ({}));
+            throw new Error(data.error || 'The reading voice could not answer.');
+          });
+        p.catch(() => clips.delete(key));
+        clips.set(key, p);
+        for (const [k, old] of clips) {         // keep only what is near
+          const [v, s, n] = k.split('|');
+          if (v !== voiceSelect.value || s !== slug || Number(n) < i - 2) {
+            old.then((u) => URL.revokeObjectURL(u)).catch(() => {});
+            clips.delete(k);
+          }
+        }
+      }
+      return clips.get(key);
+    }
+    function paintListen() {
+      list.querySelectorAll('[data-act="listen"]').forEach((b) => {
+        const on = listening && Number(b.closest('.feed-slide').dataset.i) === speakingAt;
+        b.classList.toggle('on', on);
+        b.innerHTML = on ? `${icon('pause')}<span>Pause</span>` : `${icon('play')}<span>Listen</span>`;
+        b.setAttribute('aria-label', on ? 'Pause reading' : 'Listen from here');
+      });
+    }
+    async function listenFrom(i) {
+      const mine = ++turn;
+      listening = true; speakingAt = i;
+      voiceAudio.pause();
+      paintListen();
+      const slide = list.children[i];
+      if (slide && current() !== i) feedView.scrollTo({ top: slide.offsetTop - 3, behavior: 'smooth' });
+      let url;
+      try { url = await clipFor(i); }
+      catch (error) { if (mine === turn) { stopListening(); alert(error.message); } return; }
+      if (mine !== turn) return;
+      voiceAudio.src = url;
+      voiceAudio.onended = () => {
+        if (mine !== turn) return;
+        if (i + 1 >= chunks.length) return stopListening();
+        listenFrom(i + 1);
+      };
+      voiceAudio.play().catch(() => stopListening());
+      clipFor(i + 1).catch(() => {}); clipFor(i + 2).catch(() => {});
+      if ('mediaSession' in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title, artist: `Readable · ${voiceSelect.value}` });
+    }
+    function stopListening() {
+      turn++; listening = false;
+      voiceAudio.pause();
+      paintListen();
+    }
 
     function readSelection() {
       const selection = window.getSelection();
@@ -865,7 +940,7 @@
     function clearCurrentBook() {
       bookSelect.value = '';
       store.set('currentBookId', '');
-      slug = ''; title = ''; chunks = [];
+      stopListening(); slug = ''; title = ''; chunks = [];
       reader.pause(); reader.words = []; reader.wordElements = [];
       reader.bookPage.innerHTML = '<div class="welcome"><h2>Add a book</h2><p>Upload a pdf or txt file to start reading.</p></div>';
       reader.stats.style.display = 'none';
@@ -966,6 +1041,7 @@
         store.set('currentBookId', id);
         if (libraryDialog.open) libraryDialog.close();
       }
+      stopListening();                // a new book: stop reading the old one aloud
       const text = fromChapterOne(raw);
       origLoadText(text);
       const opt = bookSelect.selectedOptions[0];
