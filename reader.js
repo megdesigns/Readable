@@ -508,6 +508,7 @@
     const filterBtn = document.getElementById('savedFilter');
     const feedBookName = document.getElementById('feedBookName');
     const savedTabs = document.getElementById('savedTabs');
+    const savedSearch = document.getElementById('savedSearch');
     const selectionBar = document.getElementById('selectionBar');
     const noteDialog = document.getElementById('noteDialog');
     const noteText = document.getElementById('noteText');
@@ -777,12 +778,18 @@
       ['liked', 'Liked', liked], ['highlights', 'Highlights', highlights],
       ['saved', 'Saved', items], ['notes', 'Notes', notes]
     ];
+    const matchingSaved = (records) => {
+      const query = savedSearch.value.trim().toLocaleLowerCase();
+      if (!query) return records;
+      return records.filter((x) => [x.title, x.chapter, x.text, x.excerpt, x.quote, x.note]
+        .some((value) => String(value || '').toLocaleLowerCase().includes(query)));
+    };
     function renderSaved() {
       document.getElementById('savedCount').textContent = countAll() ? ` · ${countAll()} kept` : '';
       savedTabs.innerHTML = categories.map(([key, label, read]) => `
-        <button type="button" role="tab" id="saved-tab-${key}" data-tab="${key}" aria-selected="${savedTab === key}">${label} <span>${read().length}</span></button>`).join('');
+        <button type="button" role="tab" id="saved-tab-${key}" data-tab="${key}" aria-selected="${savedTab === key}">${label} <span>${matchingSaved(read()).length}</span></button>`).join('');
       grid.setAttribute('aria-labelledby', 'saved-tab-' + savedTab);
-      const all = (categories.find(([key]) => key === savedTab)?.[2]() || []).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
+      const all = matchingSaved(categories.find(([key]) => key === savedTab)?.[2]() || []).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
       grid.innerHTML = all.length ? all.map((x) => `
         <article class="saved-card" data-id="${esc(x.id)}">
           <div class="feed-meta"><b>${esc(x.title)}</b>${x.chapter ? '<span>· ' + esc(x.chapter) + '</span>' : ''}<span>· ${x.i + 1} of ${x.n}</span></div>
@@ -790,9 +797,12 @@
           ${savedTab === 'notes' ? `<p class="saved-note-text">${esc(x.note)}</p>` : ''}
           <div class="saved-card-actions"><button type="button" data-open="${esc(x.id)}">Read passage</button>${savedTab === 'notes' ? `<button type="button" data-edit="${esc(x.id)}">Edit note</button>` : ''}<button type="button" data-remove="${esc(x.id)}">Remove</button></div>
         </article>`).join('')
-        : `<div class="saved-empty"><h3>No ${savedTab} yet</h3><p>Keep something from a passage while you read and it will appear here on this device.</p></div>`;
+        : savedSearch.value.trim()
+          ? `<div class="saved-empty"><h3>No matches in ${savedTab}</h3><p>Try another search or check a different tab.</p></div>`
+          : `<div class="saved-empty"><h3>No ${savedTab} yet</h3><p>Keep something from a passage while you read and it will appear here on this device.</p></div>`;
     }
-    filterBtn.addEventListener('click', () => { renderSaved(); dlg.showModal(); });
+    filterBtn.addEventListener('click', () => { savedSearch.value = ''; renderSaved(); dlg.showModal(); });
+    savedSearch.addEventListener('input', renderSaved);
     document.getElementById('savedClose').addEventListener('click', () => dlg.close());
     dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
     savedTabs.addEventListener('click', (e) => {

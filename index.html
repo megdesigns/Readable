@@ -21,7 +21,7 @@
   <meta name="twitter:description" content="Read one thought at a time. Like, save, highlight, and make notes as you go." />
   <meta name="twitter:image" content="https://mariangasinu.com/wp-content/uploads/2025/12/Black-White-Minimalist-Business-Logo-1080-x-1080-px-2.png" />
 
-  <link rel="stylesheet" href="styles.css?v=reader-tools-1" />
+  <link rel="stylesheet" href="styles.css?v=saved-search-1" />
 </head>
 
 <body class="mode-feed" data-page="feed">
@@ -134,6 +134,7 @@
 
   <dialog class="saved-dialog" id="savedDialog" aria-labelledby="savedTitle">
     <div class="saved-head"><h2 id="savedTitle">Saved<span id="savedCount"></span></h2><button type="button" class="saved-close" id="savedClose" aria-label="Close saved"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg></button></div>
+    <label class="saved-search"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg><input id="savedSearch" type="search" aria-label="Search saved items" placeholder="Search your saved items" autocomplete="off" /></label>
     <div class="saved-tabs" id="savedTabs" role="tablist" aria-label="Saved items"></div>
     <div class="saved-grid" id="savedGrid" role="tabpanel"></div>
   </dialog>
@@ -222,6 +223,6 @@
   </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="reader.js?v=reader-tools-1" defer></script>
+<script src="reader.js?v=saved-search-1" defer></script>
 </body>
 </html>
